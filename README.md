@@ -6,8 +6,15 @@ It should be noted this circuit has been proven to work with an Arduino Uno and 
 
 # Components
 Order the components listed on the parts list. The breakout breadboard and header pins are not required however these components help simplify assembly. 
-Misc Components and Tools Required
+
+ Misc Components and Tools Required
   - Wire
   - Soldering Iron
+  - Screw Driver set
+  - Hand saw
+  
+# Assembly
+1. 3D print the STL files included in repository. Casing is not required for circuit function.
+
   
 
