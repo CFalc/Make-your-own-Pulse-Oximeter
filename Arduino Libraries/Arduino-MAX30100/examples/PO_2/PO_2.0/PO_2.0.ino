@@ -1,0 +1,217 @@
+
+/*
+Arduino-MAX30100 oximetry / heart rate integrated sensor library
+Copyright (C) 2016  OXullo Intersecans <x@brainrapers.org>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include <Wire.h>
+#include "MAX30100_PulseOximeter.h"
+
+#define REPORTING_PERIOD_MS     1000
+
+// PulseOximeter is the higher level interface to the sensor
+// it offers:
+//  * beat detection reporting
+//  * heart rate calculation
+//  * SpO2 (oxidation level) calculation
+PulseOximeter pox;
+
+uint32_t tsLastReport = 0;
+
+// Callback (registered below) fired when a pulse is detected
+
+void onBeatDetected()
+{
+    Serial.println("Beat!");
+}
+
+
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// If using software SPI (the default case):
+#define OLED_MOSI   9
+#define OLED_CLK   10
+#define OLED_DC    11
+#define OLED_CS    12
+#define OLED_RESET 13
+Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
+
+/* Uncomment this block to use hardware SPI
+#define OLED_DC     6
+#define OLED_CS     7
+#define OLED_RESET  8
+Adafruit_SSD1306 display(OLED_DC, OLED_RESET, OLED_CS);
+*/
+
+#define NUMFLAKES 10
+#define XPOS 0
+#define YPOS 1
+#define DELTAY 2
+
+#define LOGO16_GLCD_HEIGHT 16 
+#define LOGO16_GLCD_WIDTH  16 
+static const unsigned char PROGMEM logo16_glcd_bmp[] =
+{ B00000000, B11000000,
+  B00000001, B11000000,
+  B00000001, B11000000,
+  B00000011, B11100000,
+  B11110011, B11100000,
+  B11111110, B11111000,
+  B01111110, B11111111,
+  B00110011, B10011111,
+  B00011111, B11111100,
+  B00001101, B01110000,
+  B00011011, B10100000,
+  B00111111, B11100000,
+  B00111111, B11110000,
+  B01111100, B11110000,
+  B01110000, B01110000,
+  B00000000, B00110000 };
+
+#if (SSD1306_LCDHEIGHT != 64)
+#error("Height incorrect, please fix Adafruit_SSD1306.h!");
+#endif
+
+// Define the number of samples to keep track of.  The higher the number,
+// the more the readings will be smoothed, but the slower the output will
+// respond to the input.  Using a constant rather than a normal variable lets
+// use this value to determine the size of the readings array.
+const int numReadings = 10;
+
+int readings[numReadings];      // the readings from the analog input
+int readIndex = 0;              // the index of the current reading
+int total = 0;                  // the running total
+int average = 0;                // the average
+
+
+void setup()
+{
+    Serial.begin(115200);
+
+    Serial.println("Initializing MAX30100");
+    // Initialize the PulseOximeter instance and register a beat-detected callback
+    pox.begin();
+    pox.setOnBeatDetectedCallback(onBeatDetected);
+
+    // Display Setup
+     // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
+  display.begin(SSD1306_SWITCHCAPVCC);
+  // init done
+  
+  // Show image buffer on the display hardware.
+  // Since the buffer is intialized with an Adafruit splashscreen
+  // internally, this will display the splashscreen.
+  //display.display();
+ // delay(2000);
+
+  // Clear the buffer.
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setTextColor(WHITE);
+  display.setCursor(15, 5);
+  // draw a single pixel
+ display.println("Pulse Ox");
+ display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.print("   V2.0");
+  // Show the display buffer on the hardware.
+  // NOTE: You _must_ call display after making any drawing commands
+  // to make them visible on the display hardware!
+  display.display();
+  delay(2000);
+  display.clearDisplay();
+  // initialize all the readings to 0:
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    readings[thisReading] = 0
+}
+
+void loop()
+{
+// subtract the last reading:
+  total = total - readings[readIndex];
+  // read from the sensor:
+  readings[readIndex] = pox.getTemperature();
+  // add the reading to the total:
+  total = total + readings[readIndex];
+  // advance to the next position in the array:
+  readIndex = readIndex + 1;
+
+  // if we're at the end of the array...
+  if (readIndex >= numReadings) {
+    // ...wrap around to the beginning:
+    readIndex = 0;
+  }
+
+  // calculate the average:
+  average = total / numReadings;
+  // send it to the computer as ASCII digits
+  Serial.println(average);
+  delay(1);
+    
+    // Make sure to call update as fast as possible
+    pox.update();
+  display.setTextSize(2);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.clearDisplay();
+    // Asynchronously dump heart rate and oxidation levels to the serial
+    // For both, a value of 0 means "invalid"
+  if( pox.getHeartRate()>=40){
+    if (millis() - tsLastReport > REPORTING_PERIOD_MS) {
+       
+        Serial.print("Heart rate:");
+        Serial.print(pox.getHeartRate());
+        Serial.println("bpm");
+        Serial.print("SpO2:");
+        Serial.print(pox.getSpO2());
+        Serial.println("%");
+        Serial.print("Temp:");
+        Serial.print(pox.getTemperature());
+        Serial.println("C");
+
+        display.print("HR:");
+        display.print(pox.getHeartRate());
+         display.setTextSize(1);
+        display.println("bpm");
+        display.println("");
+         display.setTextSize(2);
+        display.print("SpO2:");
+        display.print(pox.getSpO2());
+        display.println("%");
+        display.print("Temp:");
+        display.print(pox.getTemperature());
+        display.println("C");
+        display.display();
+        tsLastReport = millis();
+    }
+  }
+
+ else{
+    display.clearDisplay();
+    display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+    display.println("Place finger");
+    display.println("in scanner");
+    display.println("");
+    display.println("Adjust finger until");
+    display.println("reading appears");
+    display.display();
+ }
+}
