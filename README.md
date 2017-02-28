@@ -25,6 +25,7 @@ Order the components listed on the parts list.
  - Note I resized the breakout boared using a small handsaw to ensure it fits in the enclosure. This is not necessary if you wire directly to the teensy boared.
  
 # Code
-Install the following Arduino Libraries 
+Install the libraries inluded in the folder named Arduino Libraries
+If this is your first time using a Teensy board be sure to install the Teensy drivers for use with Arduino. 
 
 
