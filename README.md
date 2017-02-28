@@ -24,8 +24,7 @@ Order the components listed on the parts list.
 3. Solder components using breakout breadboard or wire. See attached image "Soldered Circuit"
  - Note I resized the breakout boared using a small handsaw to ensure it fits in the enclosure. This is not necessary if you wire directly to the teensy boared.
  
- 
+# Code
+Install the following Arduino Libraries 
 
-
-  
 
